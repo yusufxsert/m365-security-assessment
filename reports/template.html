@@ -1,49 +1,689 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M365 Security Assessment Report</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #1a1a2e; color: #e0e0e0; }
-        .header { background: #0078D4; padding: 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 2em; color: white; }
-        .header p { margin: 5px 0 0; color: #c8e6ff; }
-        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-        .meta { background: #16213e; border-radius: 8px; padding: 20px; margin-bottom: 25px; display: flex; gap: 30px; }
-        .meta div { flex: 1; }
-        .meta label { font-size: 0.8em; color: #8899aa; text-transform: uppercase; }
-        .meta p { margin: 4px 0 0; font-size: 1.1em; font-weight: bold; }
-        h2 { color: #0078D4; border-bottom: 1px solid #0078D4; padding-bottom: 8px; margin-top: 35px; }
-        ul { list-style: none; padding: 0; }
-        li { background: #16213e; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; }
-        .footer { text-align: center; padding: 30px; color: #556677; font-size: 0.85em; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M365 Security Assessment — {{TENANT_NAME}}</title>
+<style>
+/* ------------------------------------------------------------------ Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ------------------------------------------------------------------ Base */
+:root {
+  --bg:        #0d1117;
+  --card:      #161b22;
+  --card-alt:  #1c2128;
+  --border:    #30363d;
+  --accent:    #0078D4;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --critical:  #dc3545;
+  --high:      #e65c00;
+  --medium:    #fd7e14;
+  --low:       #0078D4;
+  --info:      #6c757d;
+  --pass:      #28a745;
+  --radius:    8px;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ------------------------------------------------------------------ Layout */
+.header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-logo {
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3em;
+  flex-shrink: 0;
+}
+.header-title h1 {
+  font-size: 1.4em;
+  font-weight: 600;
+  color: var(--text);
+}
+.header-title .sub {
+  color: var(--muted);
+  font-size: 0.88em;
+  margin-top: 2px;
+}
+
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ------------------------------------------------------------------ Meta cards */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.meta-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.meta-card label {
+  font-size: 0.72em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+}
+.meta-card p {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 4px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* ------------------------------------------------------------------ Executive summary */
+.exec-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+.score-gauge {
+  flex-shrink: 0;
+  text-align: center;
+}
+.score-ring {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  border: 10px solid {{RISK_COLOR}};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin: 0 auto 10px;
+}
+.score-num {
+  font-size: 2.4em;
+  font-weight: 700;
+  color: {{RISK_COLOR}};
+  line-height: 1;
+}
+.score-denom {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.risk-label {
+  font-size: 1em;
+  font-weight: 700;
+  color: {{RISK_COLOR}};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.exec-detail {
+  flex: 1;
+  min-width: 220px;
+}
+.exec-detail h2 {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.exec-detail p {
+  color: var(--muted);
+  font-size: 0.9em;
+  line-height: 1.7;
+}
+
+/* ------------------------------------------------------------------ Count cards */
+.counts-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.count-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.count-card:hover { background: var(--card-alt); }
+.count-card.active-filter { border-color: var(--accent); background: var(--card-alt); }
+.count-card .num  { font-size: 2.2em; font-weight: 700; line-height: 1; }
+.count-card .lbl  { font-size: 0.78em; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ------------------------------------------------------------------ Filter bar */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.filter-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.83em;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.filter-btn:hover  { background: var(--card-alt); }
+.filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.category-filter {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.83em;
+  font-family: inherit;
+  cursor: pointer;
+}
+.category-filter:focus { outline: none; border-color: var(--accent); }
+
+.search-box {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.85em;
+  font-family: inherit;
+  width: 230px;
+  transition: border-color 0.15s;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+.search-box::placeholder { color: var(--muted); }
+
+/* ------------------------------------------------------------------ Accordion */
+.accordion {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.accordion-header:hover { background: var(--card-alt); }
+.acc-icon {
+  color: var(--muted);
+  font-size: 0.8em;
+  transition: transform 0.2s;
+  display: inline-block;
+  line-height: 1;
+}
+.acc-icon.open { transform: rotate(90deg); }
+.acc-title  { font-weight: 600; font-size: 0.95em; flex: 1; }
+.acc-count  { color: var(--muted); font-size: 0.82em; }
+.accordion-body { display: none; padding: 0 16px 16px; }
+.accordion-body.open { display: block; }
+
+/* ------------------------------------------------------------------ Finding cards */
+.badge {
+  font-size: 0.72em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-critical { background: #dc354520; color: var(--critical); border: 1px solid #dc354540; }
+.badge-high     { background: #e65c0020; color: var(--high);     border: 1px solid #e65c0040; }
+.badge-medium   { background: #fd7e1420; color: var(--medium);   border: 1px solid #fd7e1440; }
+.badge-pass     { background: #28a74520; color: var(--pass);     border: 1px solid #28a74540; }
+.badge-info     { background: #6c757d20; color: var(--info);     border: 1px solid #6c757d40; }
+
+.finding-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 10px;
+  transition: border-color 0.15s;
+}
+.finding-card:hover { border-color: var(--accent); }
+
+.finding-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.status-badge {
+  font-size: 0.75em;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.check-id {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.82em;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.check-name {
+  font-weight: 600;
+  font-size: 0.95em;
+  flex: 1;
+  min-width: 120px;
+}
+.license-badge {
+  font-size: 0.72em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.finding-body { }
+
+.detail {
+  color: #c9d1d9;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  font-size: 0.93em;
+}
+
+.affected-list {
+  font-size: 0.85em;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  color: var(--muted);
+}
+.affected-list strong { color: var(--text); }
+.affected-list ul {
+  margin-left: 18px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.recommendation {
+  background: var(--bg);
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 10px;
+  font-size: 0.88em;
+  color: #c9d1d9;
+  line-height: 1.6;
+}
+.recommendation strong { color: var(--text); }
+
+.meta-row {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 0.8em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.meta-item strong { color: #c9d1d9; }
+
+.ref-row { font-size: 0.8em; }
+.ref-link {
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-all;
+}
+.ref-link:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------ Bar chart */
+.chart-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 28px;
+}
+.chart-section h2 {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.chart-bars { display: flex; flex-direction: column; gap: 8px; }
+.chart-row  { display: flex; align-items: center; gap: 10px; }
+.chart-label { width: 80px; font-size: 0.82em; color: var(--muted); text-align: right; flex-shrink: 0; }
+.chart-bar-wrap { flex: 1; background: var(--bg); border-radius: 4px; height: 20px; overflow: hidden; }
+.chart-bar { height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.6s ease; }
+.chart-val { font-size: 0.82em; color: var(--muted); flex-shrink: 0; width: 28px; text-align: right; }
+
+/* ------------------------------------------------------------------ Footer */
+.footer {
+  text-align: center;
+  padding: 28px 20px;
+  color: var(--muted);
+  font-size: 0.82em;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------ Print */
+@media print {
+  .filter-bar, .counts-grid, .chart-section, .header-logo { display: none !important; }
+  .accordion-header { cursor: default; }
+  .accordion-body { display: block !important; }
+  .finding-card { break-inside: avoid; }
+  body { background: #fff; color: #000; font-size: 12px; }
+  .header { background: #0078D4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .header-title h1, .header-title .sub { color: #fff; }
+  .meta-card, .finding-card, .accordion { background: #f8f9fa; border-color: #dee2e6; }
+  .recommendation { background: #f0f7ff; border-color: #0078D4; }
+  a { color: #0078D4; }
+}
+
+/* ------------------------------------------------------------------ Responsive */
+@media (max-width: 700px) {
+  .counts-grid { grid-template-columns: repeat(3, 1fr); }
+  .exec-section { flex-direction: column; gap: 24px; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .search-box { width: 100%; margin-left: 0; }
+  .header { padding: 16px 20px; }
+  .container { padding: 20px 14px; }
+}
+@media (max-width: 480px) {
+  .counts-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>M365 Security Assessment Report</h1>
-        <p>Powered by Microsoft Graph API — Read-Only Assessment</p>
+
+<!-- ========================================================= Header -->
+<div class="header">
+  <div class="header-logo">&#128737;</div>
+  <div class="header-title">
+    <h1>M365 Security Assessment Report</h1>
+    <div class="sub">{{TENANT_NAME}} &nbsp;&bull;&nbsp; {{TENANT_ID}} &nbsp;&bull;&nbsp; {{REPORT_DATE}} &nbsp;&bull;&nbsp; Duration: {{ASSESSMENT_DURATION}}</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ====================================================== Meta cards -->
+  <div class="meta-grid">
+    <div class="meta-card"><label>Tenant Name</label><p>{{TENANT_NAME}}</p></div>
+    <div class="meta-card"><label>Tenant ID</label><p>{{TENANT_ID}}</p></div>
+    <div class="meta-card"><label>Report Date</label><p>{{REPORT_DATE}}</p></div>
+    <div class="meta-card"><label>Assessment Duration</label><p>{{ASSESSMENT_DURATION}}</p></div>
+    <div class="meta-card"><label>Total Checks</label><p>{{TOTAL_COUNT}}</p></div>
+  </div>
+
+  <!-- ====================================================== Executive Summary -->
+  <div class="exec-section">
+    <div class="score-gauge">
+      <div class="score-ring">
+        <span class="score-num">{{RISK_SCORE}}</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="risk-label">{{RISK_LEVEL}}</div>
     </div>
-    <div class="container">
-        <div class="meta">
-            <div>
-                <label>Report Datum</label>
-                <p>{{REPORT_DATE}}</p>
-            </div>
-            <div>
-                <label>Tenant ID</label>
-                <p>{{TENANT_ID}}</p>
-            </div>
-            <div>
-                <label>Erstellt von</label>
-                <p>Yusuf Sert — M365 Assessment Tool</p>
-            </div>
-        </div>
-        {{RESULTS}}
+    <div class="exec-detail">
+      <h2>Executive Summary</h2>
+      <p>
+        This automated read-only assessment evaluated <strong>{{TOTAL_COUNT}}</strong> security controls
+        across your Microsoft 365 tenant. The overall risk score is
+        <strong style="color:{{RISK_COLOR}}">{{RISK_SCORE}}/100</strong>
+        ({{RISK_LEVEL}}).
+        <br><br>
+        Findings include <strong style="color:#dc3545">{{CRITICAL_COUNT}} CRITICAL</strong>,
+        <strong style="color:#e65c00">{{HIGH_COUNT}} HIGH</strong>,
+        <strong style="color:#fd7e14">{{MEDIUM_COUNT}} MEDIUM</strong>,
+        <strong style="color:#0078D4">{{LOW_COUNT}} LOW</strong>,
+        <strong style="color:#6c757d">{{INFO_COUNT}} INFO</strong>, and
+        <strong style="color:#28a745">{{PASS_COUNT}} PASS</strong> results.
+        <br><br>
+        Address all CRITICAL and HIGH findings immediately. This report was generated automatically
+        and must be reviewed by a qualified security professional before acting on its findings.
+      </p>
     </div>
-    <div class="footer">
-        <p>Generiert von M365 Security Assessment Framework &nbsp;·&nbsp; github.com/yusufxsert/m365-security-assessment</p>
+  </div>
+
+  <!-- ====================================================== Count cards (clickable filters) -->
+  <div class="counts-grid">
+    <div class="count-card" onclick="filterSeverity('CRITICAL', this)">
+      <div class="num" style="color:#dc3545">{{CRITICAL_COUNT}}</div>
+      <div class="lbl">Critical</div>
     </div>
+    <div class="count-card" onclick="filterSeverity('HIGH', this)">
+      <div class="num" style="color:#e65c00">{{HIGH_COUNT}}</div>
+      <div class="lbl">High</div>
+    </div>
+    <div class="count-card" onclick="filterSeverity('MEDIUM', this)">
+      <div class="num" style="color:#fd7e14">{{MEDIUM_COUNT}}</div>
+      <div class="lbl">Medium</div>
+    </div>
+    <div class="count-card" onclick="filterSeverity('LOW', this)">
+      <div class="num" style="color:#0078D4">{{LOW_COUNT}}</div>
+      <div class="lbl">Low</div>
+    </div>
+    <div class="count-card" onclick="filterSeverity('INFO', this)">
+      <div class="num" style="color:#6c757d">{{INFO_COUNT}}</div>
+      <div class="lbl">Info</div>
+    </div>
+    <div class="count-card" onclick="filterSeverity('PASS', this)">
+      <div class="num" style="color:#28a745">{{PASS_COUNT}}</div>
+      <div class="lbl">Pass</div>
+    </div>
+  </div>
+
+  <!-- ====================================================== Bar chart -->
+  <div class="chart-section">
+    <h2>Severity Distribution</h2>
+    <div class="chart-bars" id="chart-bars">
+      <!-- Rendered by JS from {{CHART_DATA}} -->
+    </div>
+  </div>
+
+  <!-- ====================================================== Filter bar -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterSeverity('ALL', this)">All ({{TOTAL_COUNT}})</button>
+    <button class="filter-btn" onclick="filterSeverity('CRITICAL', this)" style="border-color:#dc3545">CRITICAL</button>
+    <button class="filter-btn" onclick="filterSeverity('HIGH', this)"     style="border-color:#e65c00">HIGH</button>
+    <button class="filter-btn" onclick="filterSeverity('MEDIUM', this)"   style="border-color:#fd7e14">MEDIUM</button>
+    <button class="filter-btn" onclick="filterSeverity('LOW', this)"      style="border-color:#0078D4">LOW</button>
+    <button class="filter-btn" onclick="filterSeverity('INFO', this)"     style="border-color:#6c757d">INFO</button>
+    <button class="filter-btn" onclick="filterSeverity('PASS', this)"     style="border-color:#28a745">PASS</button>
+    <select class="category-filter" onchange="filterCategory(this.value)" id="catFilter">
+      <option value="ALL">All Categories</option>
+    </select>
+    <input class="search-box" type="text" id="searchBox" placeholder="&#128269; Search findings..." oninput="filterSearch(this.value)" />
+  </div>
+
+  <!-- ====================================================== Findings accordion -->
+  <div id="findings-container">
+    {{FINDINGS_HTML}}
+  </div>
+
+</div><!-- /container -->
+
+<!-- ========================================================= Footer -->
+<div class="footer">
+  Generated by
+  <a href="https://github.com/yusufxsert/m365-security-assessment" target="_blank" rel="noopener">
+    M365 Security Assessment Framework v1.0.0
+  </a>
+  &nbsp;&bull;&nbsp; {{REPORT_DATE}}
+  &nbsp;&bull;&nbsp; Read-only assessment — no changes were made to your tenant.
+</div>
+
+<!-- ========================================================= JavaScript -->
+<script>
+(function () {
+  'use strict';
+
+  var currentSeverity = 'ALL';
+  var currentCategory = 'ALL';
+  var currentSearch   = '';
+  var chartData       = {{CHART_DATA}};
+
+  // --- Populate category dropdown ---
+  (function populateCategories() {
+    var cats = {};
+    document.querySelectorAll('.finding-card').forEach(function (c) {
+      var cat = c.getAttribute('data-category');
+      if (cat) cats[cat] = true;
+    });
+    var sel = document.getElementById('catFilter');
+    Object.keys(cats).sort().forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value       = cat;
+      opt.textContent = cat;
+      sel.appendChild(opt);
+    });
+  })();
+
+  // --- Build bar chart ---
+  (function buildChart() {
+    var container = document.getElementById('chart-bars');
+    if (!container || !chartData || !chartData.length) return;
+
+    var max = Math.max.apply(null, chartData.map(function (d) { return d.value; }));
+    if (max === 0) max = 1;
+
+    chartData.forEach(function (d) {
+      var pct = Math.round((d.value / max) * 100);
+      var row = document.createElement('div');
+      row.className = 'chart-row';
+      row.innerHTML =
+        '<span class="chart-label">' + d.label + '</span>' +
+        '<div class="chart-bar-wrap">' +
+          '<div class="chart-bar" style="width:' + pct + '%;background:' + d.color + ';"></div>' +
+        '</div>' +
+        '<span class="chart-val">' + d.value + '</span>';
+      container.appendChild(row);
+    });
+  })();
+
+  // --- Filter logic ---
+  function applyFilters() {
+    document.querySelectorAll('.accordion').forEach(function (acc) {
+      var cards      = acc.querySelectorAll('.finding-card');
+      var accVisible = false;
+
+      cards.forEach(function (card) {
+        var status   = (card.getAttribute('data-status')   || '').toUpperCase();
+        var category =  card.getAttribute('data-category') || '';
+        var text     =  card.textContent.toLowerCase();
+
+        var sevOk  = (currentSeverity === 'ALL') || (status === currentSeverity);
+        var catOk  = (currentCategory === 'ALL') || (category === currentCategory);
+        var srchOk = (currentSearch   === '')    || (text.indexOf(currentSearch.toLowerCase()) !== -1);
+
+        var show   = sevOk && catOk && srchOk;
+        card.style.display = show ? '' : 'none';
+        if (show) accVisible = true;
+      });
+
+      acc.style.display = accVisible ? '' : 'none';
+
+      // Auto-open accordion body when a filter is active
+      if (accVisible && (currentSeverity !== 'ALL' || currentCategory !== 'ALL' || currentSearch !== '')) {
+        var body = acc.querySelector('.accordion-body');
+        var icon = acc.querySelector('.acc-icon');
+        if (body) body.classList.add('open');
+        if (icon) icon.classList.add('open');
+      }
+    });
+  }
+
+  // --- Public functions called from HTML ---
+  window.filterSeverity = function (sev, btn) {
+    currentSeverity = sev;
+
+    // Update filter-btn active states (may be called from count-cards or filter-btn)
+    document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+    document.querySelectorAll('.count-card').forEach(function (b) { b.classList.remove('active-filter'); });
+
+    if (btn) {
+      btn.classList.add(btn.classList.contains('filter-btn') ? 'active' : 'active-filter');
+    }
+    applyFilters();
+  };
+
+  window.filterCategory = function (cat) {
+    currentCategory = cat;
+    applyFilters();
+  };
+
+  window.filterSearch = function (val) {
+    currentSearch = val.trim();
+    applyFilters();
+  };
+
+  window.toggleAccordion = function (id) {
+    var acc  = document.getElementById(id);
+    if (!acc) return;
+    var body = acc.querySelector('.accordion-body');
+    var icon = acc.querySelector('.acc-icon');
+    if (body) body.classList.toggle('open');
+    if (icon) icon.classList.toggle('open');
+  };
+
+  // Keyboard shortcut: Ctrl+F / Cmd+F focuses search box
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      var box = document.getElementById('searchBox');
+      if (box) { e.preventDefault(); box.focus(); }
+    }
+  });
+
+}());
+</script>
+
 </body>
 </html>

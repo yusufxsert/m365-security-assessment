@@ -1,0 +1,262 @@
+name: M365 Security Assessment
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Comma-separated module categories to run (empty = all). Example: Identity,Defender'
+        required: false
+        default: ''
+      parallel:
+        description: 'Run modules in parallel'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  ASSESSMENT_VERSION: '1.0.0'
+  PWSH_MODULE_PATH: '~/ps-modules'
+
+jobs:
+  assess:
+    name: Run M365 Security Assessment
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ------------------------------------------------------------------ Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------ PowerShell module cache
+      - name: Cache PowerShell modules
+        id: ps-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PWSH_MODULE_PATH }}
+          key: ps-modules-${{ runner.os }}-${{ hashFiles('.github/workflows/scheduled-assessment.yml') }}
+          restore-keys: |
+            ps-modules-${{ runner.os }}-
+
+      # ------------------------------------------------------------------ Install PS modules
+      - name: Install required PowerShell modules
+        shell: pwsh
+        run: |
+          $modulePath = '${{ env.PWSH_MODULE_PATH }}'
+          if (-not (Test-Path $modulePath)) {
+            New-Item -ItemType Directory -Path $modulePath -Force | Out-Null
+          }
+          $env:PSModulePath = "$modulePath" + [IO.Path]::PathSeparator + $env:PSModulePath
+
+          $requiredModules = @(
+            'Microsoft.Graph.Authentication',
+            'Microsoft.Graph.Identity.DirectoryManagement',
+            'Microsoft.Graph.Identity.Governance',
+            'Microsoft.Graph.Identity.SignIns',
+            'Microsoft.Graph.Users',
+            'Microsoft.Graph.Groups',
+            'Microsoft.Graph.DeviceManagement',
+            'Microsoft.Graph.Security'
+          )
+
+          foreach ($module in $requiredModules) {
+            if (-not (Get-Module -Name $module -ListAvailable)) {
+              Write-Host "Installing $module..." -ForegroundColor Cyan
+              Install-Module -Name $module -Scope CurrentUser -Repository PSGallery `
+                -Force -AllowClobber -ErrorAction Stop
+            } else {
+              Write-Host "$module already cached." -ForegroundColor Green
+            }
+          }
+          Write-Host "All modules ready." -ForegroundColor Green
+
+      # ------------------------------------------------------------------ Prepare output directory
+      - name: Prepare report output directory
+        shell: pwsh
+        run: |
+          $reportDir = Join-Path $env:GITHUB_WORKSPACE 'reports/output'
+          if (-not (Test-Path $reportDir)) {
+            New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+          }
+          Write-Host "Report output directory: $reportDir"
+
+      # ------------------------------------------------------------------ Run assessment
+      - name: Run M365 Security Assessment
+        id: run_assessment
+        shell: pwsh
+        env:
+          TENANT_ID:     ${{ secrets.TENANT_ID }}
+          CLIENT_ID:     ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+        run: |
+          # Set module path so installed modules are found
+          $env:PSModulePath = '${{ env.PWSH_MODULE_PATH }}' + [IO.Path]::PathSeparator + $env:PSModulePath
+
+          $secret = ConvertTo-SecureString $env:CLIENT_SECRET -AsPlainText -Force
+
+          $params = @{
+            TenantId     = $env:TENANT_ID
+            ClientId     = $env:CLIENT_ID
+            ClientSecret = $secret
+            OutputPath   = (Join-Path $env:GITHUB_WORKSPACE 'reports/output')
+          }
+
+          # Optional: filter modules from workflow_dispatch input
+          $moduleFilter = '${{ github.event.inputs.modules }}'
+          if ($moduleFilter -and $moduleFilter.Trim() -ne '') {
+            $params['Modules'] = $moduleFilter -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+            Write-Host "Module filter: $($params['Modules'] -join ', ')"
+          }
+
+          # Optional: parallel execution
+          if ('${{ github.event.inputs.parallel }}' -eq 'true') {
+            $params['Parallel'] = $true
+            Write-Host "Parallel execution enabled."
+          }
+
+          Write-Host "Starting assessment for tenant: $($env:TENANT_ID)"
+          & (Join-Path $env:GITHUB_WORKSPACE 'scripts/Start-M365Assessment.ps1') @params
+
+          # Capture output file paths for subsequent steps
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE 'reports/output'
+          $htmlFile  = Get-ChildItem -Path $outputDir -Filter '*.html' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+          $jsonFile  = Get-ChildItem -Path $outputDir -Filter '*.json' | Where-Object Name -notlike '*assessment*.log' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+
+          if ($htmlFile) {
+            "html_report=$htmlFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Host "HTML Report: $htmlFile"
+          }
+          if ($jsonFile) {
+            "json_report=$jsonFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            Write-Host "JSON Report: $jsonFile"
+          }
+
+          # Extract risk score from JSON for step summary
+          if ($jsonFile -and (Test-Path $jsonFile)) {
+            $data      = Get-Content $jsonFile -Raw | ConvertFrom-Json
+            $riskScore = $data.Metadata.RiskScore
+            $riskLevel = $data.Metadata.RiskLevel
+            $total     = $data.Metadata.TotalChecks
+            $critical  = $data.Metadata.StatusCounts.CRITICAL
+            $high      = $data.Metadata.StatusCounts.HIGH
+
+            "risk_score=$riskScore" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "risk_level=$riskLevel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+            # Step summary
+            @"
+          ## M365 Security Assessment Results
+
+          | Metric | Value |
+          |--------|-------|
+          | Risk Score | $riskScore / 100 |
+          | Risk Level | $riskLevel |
+          | Total Checks | $total |
+          | Critical | $critical |
+          | High | $high |
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }
+
+      # ------------------------------------------------------------------ Upload HTML artifact
+      - name: Upload HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-report-html-${{ github.run_id }}
+          path: reports/output/*.html
+          retention-days: 90
+          if-no-files-found: warn
+
+      # ------------------------------------------------------------------ Upload JSON artifact
+      - name: Upload JSON report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-report-json-${{ github.run_id }}
+          path: reports/output/*.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      # ------------------------------------------------------------------ Commit report to repo (optional)
+      - name: Commit latest report to repository
+        if: success()
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE 'reports/output'
+          $htmlFile  = Get-ChildItem -Path $outputDir -Filter '*.html' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+          if (-not $htmlFile) {
+            Write-Host "No HTML report to commit." -ForegroundColor Yellow
+            exit 0
+          }
+
+          $destDir  = Join-Path $env:GITHUB_WORKSPACE 'reports/latest'
+          if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+          }
+
+          # Overwrite latest report
+          Copy-Item -Path $htmlFile.FullName  -Destination (Join-Path $destDir 'report.html') -Force
+          $jsonFile = Get-ChildItem -Path $outputDir -Filter '*.json' | Where-Object Name -notlike '*.log' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if ($jsonFile) {
+            Copy-Item -Path $jsonFile.FullName -Destination (Join-Path $destDir 'report.json') -Force
+          }
+
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/latest/
+          $changed = git diff --cached --name-only
+          if ($changed) {
+            $score = '${{ steps.run_assessment.outputs.risk_score }}'
+            $level = '${{ steps.run_assessment.outputs.risk_level }}'
+            git commit -m "chore: update latest assessment report [score: $score, $level]"
+            git push
+            Write-Host "Latest report committed." -ForegroundColor Green
+          } else {
+            Write-Host "No changes to commit." -ForegroundColor Gray
+          }
+
+      # ------------------------------------------------------------------ Create issue on failure
+      - name: Create GitHub issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today    = new Date().toISOString().split('T')[0];
+            const runUrl   = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title    = `[Assessment Failure] Scheduled M365 assessment failed — ${today}`;
+            const body     = [
+              '## Automated Assessment Failure',
+              '',
+              `The scheduled M365 Security Assessment workflow failed on **${today}**.`,
+              '',
+              `**Workflow run:** [${context.runId}](${runUrl})`,
+              `**Trigger:** ${context.eventName}`,
+              '',
+              '### Next Steps',
+              '1. Check the [workflow run logs](' + runUrl + ') for the error message.',
+              '2. Verify that the `TENANT_ID`, `CLIENT_ID`, and `CLIENT_SECRET` secrets are current.',
+              '3. Confirm the app registration has the required Graph API permissions.',
+              '4. Re-run the workflow manually once the issue is resolved.',
+              '',
+              '---',
+              '*This issue was created automatically by the assessment workflow.*'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner:  context.repo.owner,
+              repo:   context.repo.repo,
+              title:  title,
+              body:   body,
+              labels: ['assessment-failure', 'automated']
+            });
