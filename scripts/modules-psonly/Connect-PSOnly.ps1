@@ -112,7 +112,7 @@ function Connect-PSOnly {
         'Microsoft.Graph.Identity.Governance'
     )
     foreach ($mod in $graphModules) {
-        Import-Module $mod -Force -ErrorAction SilentlyContinue
+        Import-Module $mod -ErrorAction SilentlyContinue
     }
 
     # ---- Microsoft Graph (interactive / device code) -------------------------
