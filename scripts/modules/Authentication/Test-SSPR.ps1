@@ -16,6 +16,13 @@
     License: E3 minimum for basic SSPR; writeback requires hybrid + E3
     Note: SSPR policy is only fully available via the beta endpoint.
           The v1.0 endpoint does not expose selfServicePasswordResetPolicy.
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Authentication/Test-SSPR.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-SSPR {

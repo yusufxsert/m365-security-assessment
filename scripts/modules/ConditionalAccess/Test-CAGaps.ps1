@@ -27,6 +27,13 @@
     License Required            : E3; GAP-005 and GAP-006 require E5 / Entra ID P2
 
     Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/ConditionalAccess/Test-CAGaps.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-CAGaps {

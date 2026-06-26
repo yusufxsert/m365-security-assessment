@@ -26,6 +26,13 @@
         APP-004  App registrations with privileged API permissions
         APP-005  App registrations with no owners (admin-consented)
         APP-006  Abandoned app registrations (no service principal)
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/WorkloadIdentities/Test-AppRegistrations.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-AppRegistrations {

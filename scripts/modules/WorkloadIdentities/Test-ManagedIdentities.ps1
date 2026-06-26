@@ -24,6 +24,13 @@
         MSI-002  User-assigned managed identities inventory
         MSI-003  Managed identities with application permissions
         MSI-004  Workload identity federation configured (positive indicator)
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/WorkloadIdentities/Test-ManagedIdentities.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-ManagedIdentities {

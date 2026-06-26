@@ -24,6 +24,13 @@
     Note: DLP policies are managed via the Compliance Center / Purview. The
     Graph Security API provides read access. Policy details may be limited
     based on available permissions.
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/DataProtection/Test-DLPPolicies.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-DLPPolicies {

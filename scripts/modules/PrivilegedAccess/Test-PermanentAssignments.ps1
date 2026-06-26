@@ -19,6 +19,13 @@
     License: Microsoft 365 E3 / E5 (role assignment read does not require P2)
     CIS Benchmark: CIS Microsoft 365 Foundations Benchmark v3.0
     SC-300 Domain: Identity Governance
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/PrivilegedAccess/Test-PermanentAssignments.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-PermanentAssignments {

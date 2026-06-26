@@ -25,6 +25,13 @@
 
     Note: The Sensitivity Labels Graph API endpoint requires Purview/MIP to be
     configured in the tenant. The beta endpoint is used for label policies.
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/DataProtection/Test-SensitivityLabels.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-SensitivityLabels {

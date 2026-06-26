@@ -26,6 +26,13 @@
         OAU-003  Tenant-wide OAuth grant inventory
         OAU-004  Per-user consents with sensitive scopes
         OAU-005  Publisher verification of apps with admin consent
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/WorkloadIdentities/Test-OAuthConsent.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-OAuthConsent {

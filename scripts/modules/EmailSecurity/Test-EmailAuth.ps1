@@ -32,6 +32,13 @@
         EML-004  DMARC aggregate reporting configured
         EML-005  MX record pointing to Exchange Online
         EML-006  Domain federation status
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/EmailSecurity/Test-EmailAuth.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-EmailAuth {

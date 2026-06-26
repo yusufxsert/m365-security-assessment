@@ -17,6 +17,13 @@
         RoleManagement.Read.Directory
         Directory.Read.All
     License: E3 minimum; per-user MFA status requires Reports.Read.All
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Authentication/Test-MFACoverage.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-MFACoverage {
@@ -33,46 +40,55 @@ function Test-MFACoverage {
         $regDetails = Get-MgReportAuthenticationMethodUserRegistrationDetail -All -ErrorAction Stop
     }
     catch {
-        $results.Add((New-AssessmentResult `
-            -CheckName 'MFA-000: Registration Report Access' `
-            -Status    'Info' `
-            -Detail    "Could not retrieve authentication method registration details. MFA-001, MFA-004, MFA-005 skipped. Required: Reports.Read.All. Error: $_" `
+        $results.Add((New-CheckResult `
+            -CheckId        'MFA-000' `
+            -Category       'Authentication' `
+            -Name           'Registration Report Access' `
+            -Status         'INFO' `
+            -Detail         "Could not retrieve authentication method registration details. MFA-001, MFA-004, MFA-005 skipped. Required: Reports.Read.All. Error: $_" `
             -Recommendation 'Grant Reports.Read.All to the service principal.' `
-            -Reference 'https://learn.microsoft.com/graph/api/reportroot-list-credentialuserregistrationdetails' `
-            -Category  'Authentication' `
-            -Severity  'Info'))
+            -Reference      'https://learn.microsoft.com/graph/api/reportroot-list-credentialuserregistrationdetails' `
+            -CISControl     '' `
+            -SC300Domain    'Authentication & Access Management' `
+            -LicenseRequired 'E3' `
+            -AffectedObjects @()))
     }
 
     # MFA-001: MFA registration rate (all users)
     if ($regDetails) {
         try {
-            $totalUsers = $regDetails.Count
+            $totalUsers    = $regDetails.Count
             $mfaRegistered = ($regDetails | Where-Object { $_.IsMfaRegistered -eq $true }).Count
-            $pct = if ($totalUsers -gt 0) { [math]::Round(($mfaRegistered / $totalUsers) * 100, 1) } else { 0 }
+            $pct           = if ($totalUsers -gt 0) { [math]::Round(($mfaRegistered / $totalUsers) * 100, 1) } else { 0 }
 
-            $status   = if ($pct -ge 95) { 'Pass' } elseif ($pct -ge 80) { 'Warning' } else { 'Fail' }
-            $severity = if ($pct -lt 50) { 'Critical' } elseif ($pct -lt 80) { 'High' } elseif ($pct -lt 95) { 'Medium' } else { 'Info' }
+            $checkStatus = if ($pct -ge 95) { 'PASS' } elseif ($pct -ge 80) { 'MEDIUM' } elseif ($pct -ge 50) { 'HIGH' } else { 'CRITICAL' }
 
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-001: MFA Registration Rate' `
-                -Status    $status `
-                -Detail    "$mfaRegistered of $totalUsers users have MFA registered ($pct%). Target: 95%+." `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-001' `
+                -Category       'Authentication' `
+                -Name           'MFA Registration Rate' `
+                -Status         $checkStatus `
+                -Detail         "$mfaRegistered of $totalUsers users have MFA registered ($pct%). Target: 95%+." `
                 -Recommendation 'Enable the authentication methods registration campaign. Enforce MFA registration via Conditional Access (require registration as grant control). Target 100%.' `
-                -Reference 'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
-                -Category  'Authentication' `
-                -Severity  $severity `
-                -MitreId   'T1110.003' `
-                -MitreTactic 'CredentialAccess' `
-                -CisControl 'CIS M365 1.1.2'))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
+                -CISControl     'CIS M365 1.1.2' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
         catch {
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-001: MFA Registration Rate' `
-                -Status    'Info' `
-                -Detail    "Failed to process registration details: $_" `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-001' `
+                -Category       'Authentication' `
+                -Name           'MFA Registration Rate' `
+                -Status         'INFO' `
+                -Detail         "Failed to process registration details: $_" `
                 -Recommendation '' `
-                -Category  'Authentication' `
-                -Severity  'Info'))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
+                -CISControl     '' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
     }
 
@@ -89,7 +105,7 @@ function Test-MFACoverage {
         )
         $privilegedRoles = $allRoles | Where-Object { $_.DisplayName -in $privilegedRoleNames }
 
-        $adminIds = [System.Collections.Generic.HashSet[string]]::new()
+        $adminIds   = [System.Collections.Generic.HashSet[string]]::new()
         $adminUpnMap = @{}
 
         foreach ($role in $privilegedRoles) {
@@ -127,60 +143,55 @@ function Test-MFACoverage {
             catch { Write-Verbose "Could not check MFA methods for admin $adminId: $_" }
         }
 
-        $status = if ($adminsWithoutMfa.Count -eq 0) { 'Pass' } else { 'Fail' }
-        $affectedList = $adminsWithoutMfa -join ', '
-
-        $results.Add((New-AssessmentResult `
-            -CheckName 'MFA-002: Admins Without MFA' `
-            -Status    $status `
-            -Detail    "$($adminsWithoutMfa.Count) of $($adminIds.Count) admin account(s) have no MFA method registered. Affected: $affectedList" `
+        $results.Add((New-CheckResult `
+            -CheckId        'MFA-002' `
+            -Category       'Authentication' `
+            -Name           'Admins Without MFA' `
+            -Status         (if ($adminsWithoutMfa.Count -gt 0) { 'CRITICAL' } else { 'PASS' }) `
+            -Detail         "$($adminsWithoutMfa.Count) of $($adminIds.Count) admin account(s) have no MFA method registered." `
             -Recommendation 'Require MFA registration immediately for all admins. Configure Conditional Access with phishing-resistant MFA strength for all privileged roles.' `
-            -Reference 'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-strengths' `
-            -Category  'Authentication' `
-            -Severity  (if ($adminsWithoutMfa.Count -gt 0) { 'Critical' } else { 'Info' }) `
-            -MitreId   'T1111' `
-            -MitreTactic 'CredentialAccess' `
-            -CisControl 'CIS M365 1.1.1'))
+            -Reference      'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-strengths' `
+            -CISControl     'CIS M365 1.1.1' `
+            -SC300Domain    'Authentication & Access Management' `
+            -LicenseRequired 'E3' `
+            -AffectedObjects $adminsWithoutMfa.ToArray()))
     }
     catch {
-        $results.Add((New-AssessmentResult `
-            -CheckName 'MFA-002: Admins Without MFA' `
-            -Status    'Info' `
-            -Detail    "Check skipped: insufficient permissions. Required: RoleManagement.Read.Directory, UserAuthenticationMethod.Read.All. Error: $_" `
+        $results.Add((New-CheckResult `
+            -CheckId        'MFA-002' `
+            -Category       'Authentication' `
+            -Name           'Admins Without MFA' `
+            -Status         'INFO' `
+            -Detail         "Check skipped: insufficient permissions. Required: RoleManagement.Read.Directory, UserAuthenticationMethod.Read.All. Error: $_" `
             -Recommendation 'Grant RoleManagement.Read.Directory and UserAuthenticationMethod.Read.All.' `
-            -Reference 'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-strengths' `
-            -Category  'Authentication' `
-            -Severity  'Info'))
+            -Reference      'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-strengths' `
+            -CISControl     'CIS M365 1.1.1' `
+            -SC300Domain    'Authentication & Access Management' `
+            -LicenseRequired 'E3' `
+            -AffectedObjects @()))
     }
 
     # MFA-003: MFA enforcement method (CA vs per-user vs Security Defaults)
     try {
-        # Check Security Defaults
-        $secDefaults = Invoke-MgGraphRequest -Method GET `
+        $secDefaults        = Invoke-MgGraphRequest -Method GET `
             -Uri 'https://graph.microsoft.com/v1.0/policies/identitySecurityDefaultsEnforcementPolicy' `
             -ErrorAction Stop
         $secDefaultsEnabled = $secDefaults.isEnabled
 
-        # Check CA policies requiring MFA
-        $caPolicies = Invoke-MgGraphRequest -Method GET `
+        $caPolicies  = Invoke-MgGraphRequest -Method GET `
             -Uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?`$filter=state eq 'enabled'&`$select=id,displayName,grantControls,conditions,state" `
             -ErrorAction Stop
-        $enabledCa = $caPolicies.value
+        $enabledCa   = $caPolicies.value
 
         $caMfaForAll = $enabledCa | Where-Object {
-            $grant = $_.grantControls
-            $conditions = $_.conditions
-            $grant.builtInControls -contains 'mfa' -and
-            $conditions.users.includeUsers -contains 'All'
+            $_.grantControls.builtInControls -contains 'mfa' -and
+            $_.conditions.users.includeUsers -contains 'All'
         }
         $caMfaForAdmins = $enabledCa | Where-Object {
-            $grant = $_.grantControls
-            $grant.builtInControls -contains 'mfa' -and
+            $_.grantControls.builtInControls -contains 'mfa' -and
             $_.conditions.users.includeRoles.Count -gt 0
         }
 
-        # Per-user MFA: detected via registration details having isMfaRegistered but no CA MFA
-        # We can only detect if per-user MFA is the primary method by absence of CA enforcement
         $enforcement = if ($caMfaForAll.Count -gt 0) {
             "Conditional Access (recommended): MFA enforced for all users via $($caMfaForAll.Count) CA policy/policies"
         }
@@ -194,66 +205,77 @@ function Test-MFACoverage {
             "Per-user MFA or no enforcement detected: No CA policy requires MFA for all users, Security Defaults disabled"
         }
 
-        $noEnforcement = (-not $secDefaultsEnabled -and $caMfaForAll.Count -eq 0 -and $caMfaForAdmins.Count -eq 0)
         $perUserOnly = (-not $secDefaultsEnabled -and $caMfaForAll.Count -eq 0 -and $caMfaForAdmins.Count -eq 0)
 
-        $results.Add((New-AssessmentResult `
-            -CheckName 'MFA-003: MFA Enforcement Method' `
-            -Status    (if ($caMfaForAll.Count -gt 0) { 'Pass' } elseif ($perUserOnly) { 'Fail' } else { 'Warning' }) `
-            -Detail    $enforcement `
-            -Recommendation 'Use Conditional Access policies to enforce MFA for all users. Avoid relying on per-user MFA (legacy, cannot be scoped to conditions). Migrate per-user MFA settings to CA policies.' `
-            -Reference 'https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-all-users-mfa' `
-            -Category  'Authentication' `
-            -Severity  (if ($perUserOnly) { 'High' } else { 'Medium' }) `
-            -MitreId   'T1110.003' `
-            -MitreTactic 'CredentialAccess' `
-            -CisControl 'CIS M365 1.2.2'))
+        $results.Add((New-CheckResult `
+            -CheckId        'MFA-003' `
+            -Category       'Authentication' `
+            -Name           'MFA Enforcement Method' `
+            -Status         (if ($caMfaForAll.Count -gt 0) { 'PASS' } elseif ($perUserOnly) { 'HIGH' } else { 'MEDIUM' }) `
+            -Detail         $enforcement `
+            -Recommendation 'Use Conditional Access policies to enforce MFA for all users. Avoid relying on per-user MFA (legacy). Migrate per-user MFA settings to CA policies.' `
+            -Reference      'https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-all-users-mfa' `
+            -CISControl     'CIS M365 1.2.2' `
+            -SC300Domain    'Authentication & Access Management' `
+            -LicenseRequired 'E3' `
+            -AffectedObjects @()))
     }
     catch {
-        $results.Add((New-AssessmentResult `
-            -CheckName 'MFA-003: MFA Enforcement Method' `
-            -Status    'Info' `
-            -Detail    "Check skipped: insufficient permissions. Required: Policy.Read.All. Error: $_" `
+        $results.Add((New-CheckResult `
+            -CheckId        'MFA-003' `
+            -Category       'Authentication' `
+            -Name           'MFA Enforcement Method' `
+            -Status         'INFO' `
+            -Detail         "Check skipped: insufficient permissions. Required: Policy.Read.All. Error: $_" `
             -Recommendation 'Grant Policy.Read.All to the service principal.' `
-            -Reference 'https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-all-users-mfa' `
-            -Category  'Authentication' `
-            -Severity  'Info'))
+            -Reference      'https://learn.microsoft.com/entra/identity/conditional-access/howto-conditional-access-policy-all-users-mfa' `
+            -CISControl     '' `
+            -SC300Domain    'Authentication & Access Management' `
+            -LicenseRequired 'E3' `
+            -AffectedObjects @()))
     }
 
     # MFA-004: Passwordless authentication adoption
     if ($regDetails) {
         try {
             $passwordlessMethods = @(
-                'microsoftAuthenticatorAuthenticationMethod',  # Authenticator passwordless
+                'microsoftAuthenticatorAuthenticationMethod',
                 'fido2AuthenticationMethod',
                 'windowsHelloForBusinessAuthenticationMethod'
             )
-
             $passwordlessUsers = $regDetails | Where-Object {
                 $_.MethodsRegistered | Where-Object { $_ -in $passwordlessMethods }
             }
-            $totalUsers = $regDetails.Count
+            $totalUsers        = $regDetails.Count
             $passwordlessCount = $passwordlessUsers.Count
             $pct = if ($totalUsers -gt 0) { [math]::Round(($passwordlessCount / $totalUsers) * 100, 1) } else { 0 }
 
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-004: Passwordless Authentication Adoption' `
-                -Status    'Info' `
-                -Detail    "$passwordlessCount of $totalUsers users ($pct%) have a passwordless method registered (Authenticator passwordless, FIDO2, or Windows Hello for Business)." `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-004' `
+                -Category       'Authentication' `
+                -Name           'Passwordless Authentication Adoption' `
+                -Status         'INFO' `
+                -Detail         "$passwordlessCount of $totalUsers users ($pct%) have a passwordless method registered (Authenticator passwordless, FIDO2, or Windows Hello for Business)." `
                 -Recommendation 'Drive passwordless adoption. Start with admins, then IT staff, then all users. Authenticator passwordless sign-in and FIDO2 keys are phishing-resistant.' `
-                -Reference 'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-passwordless' `
-                -Category  'Authentication' `
-                -Severity  'Info' `
-                -CisControl ''))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-passwordless' `
+                -CISControl     '' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
         catch {
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-004: Passwordless Adoption' `
-                -Status    'Info' `
-                -Detail    "Failed to process passwordless data: $_" `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-004' `
+                -Category       'Authentication' `
+                -Name           'Passwordless Authentication Adoption' `
+                -Status         'INFO' `
+                -Detail         "Failed to process passwordless data: $_" `
                 -Recommendation '' `
-                -Category  'Authentication' `
-                -Severity  'Info'))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/concept-authentication-passwordless' `
+                -CISControl     '' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
     }
 
@@ -263,33 +285,40 @@ function Test-MFACoverage {
             $totalUsers = $regDetails.Count
             if ($totalUsers -gt 0) {
                 $totalMethods = ($regDetails | Measure-Object -Property { $_.MethodsRegistered.Count } -Sum).Sum
-                $avgMethods = [math]::Round($totalMethods / $totalUsers, 2)
+                $avgMethods   = [math]::Round($totalMethods / $totalUsers, 2)
             }
             else {
                 $avgMethods = 0
             }
 
-            $status   = if ($avgMethods -ge 2) { 'Pass' } elseif ($avgMethods -ge 1.5) { 'Warning' } else { 'Fail' }
-            $severity = if ($avgMethods -lt 1.5) { 'Low' } else { 'Info' }
+            $checkStatus = if ($avgMethods -ge 2) { 'PASS' } elseif ($avgMethods -ge 1.5) { 'MEDIUM' } else { 'LOW' }
 
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-005: Average Auth Methods per User' `
-                -Status    $status `
-                -Detail    "Average registered authentication methods per user: $avgMethods (total users: $totalUsers). Fewer than 2 methods per user creates lockout risk if primary method is unavailable." `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-005' `
+                -Category       'Authentication' `
+                -Name           'Average Auth Methods per User' `
+                -Status         $checkStatus `
+                -Detail         "Average registered authentication methods per user: $avgMethods (total users: $totalUsers). Fewer than 2 methods per user creates lockout risk if primary method is unavailable." `
                 -Recommendation 'Encourage users to register at least 2 authentication methods (e.g., Authenticator app + backup phone/email). Use the registration campaign to prompt re-registration.' `
-                -Reference 'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
-                -Category  'Authentication' `
-                -Severity  $severity `
-                -CisControl ''))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
+                -CISControl     '' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
         catch {
-            $results.Add((New-AssessmentResult `
-                -CheckName 'MFA-005: Average Auth Methods' `
-                -Status    'Info' `
-                -Detail    "Failed to calculate average: $_" `
+            $results.Add((New-CheckResult `
+                -CheckId        'MFA-005' `
+                -Category       'Authentication' `
+                -Name           'Average Auth Methods per User' `
+                -Status         'INFO' `
+                -Detail         "Failed to calculate average: $_" `
                 -Recommendation '' `
-                -Category  'Authentication' `
-                -Severity  'Info'))
+                -Reference      'https://learn.microsoft.com/entra/identity/authentication/howto-registration-mfa-sspr-combined' `
+                -CISControl     '' `
+                -SC300Domain    'Authentication & Access Management' `
+                -LicenseRequired 'E3' `
+                -AffectedObjects @()))
         }
     }
 

@@ -29,6 +29,13 @@
         SIM-004 CAE: E3 minimum
 
     Assumes New-CheckResult is dot-sourced from scripts/helpers before calling.
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Monitoring/Test-SIEMIntegration.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-SIEMIntegration {

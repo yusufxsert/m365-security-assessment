@@ -17,6 +17,13 @@
     License: Entra ID P2 / Microsoft 365 E5
     CIS Benchmark: CIS Microsoft 365 Foundations Benchmark v3.0
     SC-300 Domain: Identity Governance
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Governance/Test-AccessReviews.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-AccessReviews {

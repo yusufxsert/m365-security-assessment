@@ -15,6 +15,13 @@
         Directory.Read.All
     License: Custom banned password list requires Entra ID P1 (E3);
              On-premises password protection requires Entra ID P1 or P2
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Authentication/Test-PasswordProtection.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-PasswordProtection {

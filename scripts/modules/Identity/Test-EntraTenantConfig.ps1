@@ -14,6 +14,13 @@
         Directory.Read.All
         Organization.Read.All
     License: E3 minimum; E5 for full CA conflict detection
+    See also (PS-only variant — no App Registration required):
+        scripts/modules-psonly/Identity/Test-EntraTenantConfig.ps1
+        Connects via: Connect-MgGraph -Scopes ... / Connect-ExchangeOnline (interactive)
+        Pro : No App Registration, works with any admin account interactively
+        Pro : EXO cmdlets provide native access to Exchange-specific configs
+        Con : Requires interactive login — not suitable for unattended automation
+        Con : Delegated permissions — bounded by the user's own role assignments
 #>
 
 function Test-EntraTenantConfig {

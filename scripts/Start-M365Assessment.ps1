@@ -94,7 +94,9 @@ function New-CheckResult {
         [string]$SC300Domain,
         [ValidateSet('E3','E5','Both','None')]
         [string]$LicenseRequired = 'None',
-        [string[]]$AffectedObjects = @()
+        [string[]]$AffectedObjects = @(),
+        [string]$MitreId       = '',
+        [string]$MitreTactic   = ''
     )
     [PSCustomObject]@{
         CheckId         = $CheckId
@@ -108,8 +110,70 @@ function New-CheckResult {
         SC300Domain     = $SC300Domain
         LicenseRequired = $LicenseRequired
         AffectedObjects = $AffectedObjects
+        MitreId         = $MitreId
+        MitreTactic     = $MitreTactic
         Timestamp       = (Get-Date -Format 'o')
     }
+}
+
+# ---- Compatibility wrapper: maps old New-AssessmentResult signature to New-CheckResult ----
+function New-AssessmentResult {
+    param(
+        [string]$CheckName,
+        [string]$Status,
+        [string]$Detail,
+        [string]$Recommendation,
+        [string]$Reference,
+        [string]$Category,
+        [string]$Severity = 'Info',
+        [string]$MitreId,
+        [string]$MitreTactic,
+        [string]$CisControl,
+        [string[]]$AffectedObjects = @(),
+        [string]$SC300Domain     = '',
+        [string]$LicenseRequired = 'E3'
+    )
+
+    # PASS wins; Fail with low/no severity maps to LOW (not INFO) to stay visible.
+    # Severity drives everything else — preserves the old two-field contract.
+    $mappedStatus = if     ($Status -eq 'Pass')        { 'PASS'     }
+                   elseif  ($Severity -eq 'Critical')  { 'CRITICAL' }
+                   elseif  ($Severity -eq 'High')      { 'HIGH'     }
+                   elseif  ($Severity -eq 'Medium')    { 'MEDIUM'   }
+                   elseif  ($Severity -eq 'Low')       { 'LOW'      }
+                   elseif  ($Status   -eq 'Fail')      { 'LOW'      }
+                   else                                { 'INFO'     }
+
+    # Extract CheckId and Name from 'XXX-001: Name Here' format
+    $checkId = ''; $checkName = $CheckName
+    if ($CheckName -match '^([A-Z]+-\d+(?:-\S+)?):\s*(.+)$') {
+        $checkId = $Matches[1]; $checkName = $Matches[2]
+    }
+
+    # Derive SC300Domain from Category when not supplied explicitly
+    $resolvedDomain = if ($SC300Domain) { $SC300Domain }
+                      else {
+                          switch ($Category) {
+                              'Authentication' { 'Authentication & Access Management' }
+                              'Identity'       { 'Identity Management'                }
+                              default          { $Category                            }
+                          }
+                      }
+
+    New-CheckResult `
+        -CheckId         $checkId `
+        -Category        $Category `
+        -Name            $checkName `
+        -Status          $mappedStatus `
+        -Detail          $Detail `
+        -Recommendation  $Recommendation `
+        -Reference       $Reference `
+        -CISControl      ($CisControl ?? '') `
+        -SC300Domain     $resolvedDomain `
+        -LicenseRequired $LicenseRequired `
+        -AffectedObjects $AffectedObjects `
+        -MitreId         ($MitreId   ?? '') `
+        -MitreTactic     ($MitreTactic ?? '')
 }
 
 # ---- Validate parameters -------------------------------------------------------
