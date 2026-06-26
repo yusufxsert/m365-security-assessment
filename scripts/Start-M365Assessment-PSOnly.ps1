@@ -212,15 +212,38 @@ foreach ($moduleFile in $allModuleFiles) {
 }
 
 # ---- Report -------------------------------------------------------------------
-$reportFile = Join-Path $resolvedOutput "psonly_assessment_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
-$allResults | ConvertTo-Json -Depth 5 | Out-File -FilePath $reportFile -Encoding UTF8
+$duration    = (Get-Date) - $startTime
+$durationStr = '{0:D2}:{1:D2}:{2:D2}' -f [int]$duration.Hours, [int]$duration.Minutes, [int]$duration.Seconds
+$tenantId    = if ($UPN -match '@(.+)$') { $Matches[1] } else { 'unknown' }
 
-$duration = (Get-Date) - $startTime
+$helperReport = Join-Path $PSScriptRoot 'helpers\New-AssessmentReport.ps1'
+if (-not (Test-Path $helperReport)) {
+    $helperReport = Join-Path $PSScriptRoot 'helpers/New-AssessmentReport.ps1'
+}
+. $helperReport
+
+$resultArray  = [array]($allResults | Sort-Object Category, CheckId)
+$reportOutput = New-AssessmentReport `
+    -Results            $resultArray `
+    -OutputPath         $resolvedOutput `
+    -TenantId           $tenantId `
+    -TenantName         $tenantId `
+    -AssessmentDuration $durationStr
+
+$riskColor = switch ($reportOutput.RiskLevel) {
+    'LOW RISK'      { 'Green' }
+    'MEDIUM RISK'   { 'Yellow' }
+    'HIGH RISK'     { 'DarkYellow' }
+    'CRITICAL RISK' { 'Red' }
+    default         { 'White' }
+}
 
 Write-Host "`n[Assessment] Complete." -ForegroundColor Green
 Write-Host "  Total findings : $($allResults.Count)"
-Write-Host "  Duration       : $([math]::Round($duration.TotalSeconds, 1))s"
-Write-Host "  Report         : $reportFile"
+Write-Host "  Duration       : $durationStr"
+Write-Host "  Risk Score     : $($reportOutput.RiskScore) / 100 — $($reportOutput.RiskLevel)" -ForegroundColor $riskColor
+Write-Host "  HTML Report    : $($reportOutput.HtmlPath)" -ForegroundColor Cyan
+Write-Host "  JSON Export    : $($reportOutput.JsonPath)" -ForegroundColor Cyan
 
 # Summary by status
 $allResults | Group-Object Status | Sort-Object Name |

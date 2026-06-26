@@ -1,5 +1,4 @@
 #Requires -Version 7.0
-#Requires -Modules Microsoft.Graph.Reports, Microsoft.Graph.Authentication
 
 <#
 .SYNOPSIS

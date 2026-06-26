@@ -1,5 +1,4 @@
 #Requires -Version 7.0
-#Requires -Modules Microsoft.Graph.Identity.DirectoryManagement, Microsoft.Graph.Authentication
 
 <#
 .SYNOPSIS
