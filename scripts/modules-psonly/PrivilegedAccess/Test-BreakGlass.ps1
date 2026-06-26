@@ -294,7 +294,7 @@ function Test-BreakGlass {
                 }
             }
             catch {
-                Write-Verbose "Could not check licenses for $upn: $_"
+                Write-Verbose "Could not check licenses for ${upn}: $_"
             }
         }
 
@@ -361,7 +361,7 @@ function Test-BreakGlass {
                 }
             }
             catch {
-                $signInSummary.Add("Could not retrieve sign-ins for $upn: $_")
+                $signInSummary.Add("Could not retrieve sign-ins for ${upn}: $_")
             }
         }
 
@@ -426,7 +426,7 @@ function Test-BreakGlass {
                 }
             }
             catch {
-                Write-Verbose "Could not check auth methods for $upn: $_"
+                Write-Verbose "Could not check auth methods for ${upn}: $_"
                 $weakAuthBgAccounts.Add("$upn — Could not verify auth methods: $_")
             }
         }

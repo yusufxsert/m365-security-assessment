@@ -91,7 +91,7 @@ function Test-AdminHygiene {
                 }
             }
             catch {
-                Write-Verbose "Could not check licenses for admin $adminId: $_"
+                Write-Verbose "Could not check licenses for admin ${adminId}: $_"
             }
         }
 
@@ -234,7 +234,7 @@ function Test-AdminHygiene {
                 }
             }
             catch {
-                Write-Verbose "Could not check auth methods for $upn: $_"
+                Write-Verbose "Could not check auth methods for ${upn}: $_"
             }
         }
 
@@ -309,7 +309,7 @@ function Test-AdminHygiene {
                 }
             }
             catch {
-                Write-Verbose "Could not get signInActivity for $adminId: $_"
+                Write-Verbose "Could not get signInActivity for ${adminId}: $_"
             }
         }
 
@@ -432,7 +432,7 @@ function Test-AdminHygiene {
                 }
             }
             catch {
-                Write-Verbose "Could not check mailbox for $upn: $_"
+                Write-Verbose "Could not check mailbox for ${upn}: $_"
             }
         }
 

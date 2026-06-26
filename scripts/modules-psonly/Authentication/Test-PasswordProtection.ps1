@@ -5,12 +5,12 @@
     Checks Entra ID Password Protection and Smart Lockout configuration. PS-ONLY variant.
 
 .DESCRIPTION
-    PS-ONLY VARIANT — converts New-AssessmentResult → New-CheckResult, and uses
+    PS-ONLY VARIANT — converts New-CheckResult → New-CheckResult, and uses
     Invoke-MgGraphRequest for the directory settings endpoint (no Get-Mg* cmdlet
     for /settings exists) plus Get-MgOrganization for hybrid detection.
 
     WHY PS-ONLY:
-    The original uses New-AssessmentResult (different helper with different parameters).
+    The original uses New-CheckResult (different helper with different parameters).
     This variant uses New-CheckResult with the standard CheckId-based parameter set.
     The directory settings endpoint (/settings) has no Get-Mg* equivalent — we keep
     Invoke-MgGraphRequest for that specific call only (confirmed Graph path).
@@ -43,7 +43,7 @@
     All findings are returned as PSCustomObject via New-CheckResult.
     The function is read-only and makes no changes to tenant configuration.
 
-    Status mapping from original (New-AssessmentResult) to New-CheckResult:
+    Status mapping from original (New-CheckResult) to New-CheckResult:
         Pass    → PASS
         Warning → MEDIUM (or HIGH where severity was Medium/High)
         Fail    → HIGH

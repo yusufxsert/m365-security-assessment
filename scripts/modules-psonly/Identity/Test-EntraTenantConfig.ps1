@@ -36,7 +36,7 @@
                            Microsoft.Graph.Identity.SignIns
 
     License: E3 minimum; E5 for full CA conflict detection.
-    Assumes New-AssessmentResult is dot-sourced from scripts/helpers before calling this function.
+    Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
 #>
 
 function Test-EntraTenantConfig {
@@ -78,7 +78,7 @@ function Test-EntraTenantConfig {
             }
 
             if ($enabledCaCount -gt 0) {
-                $results.Add((New-AssessmentResult `
+                $results.Add((New-CheckResult `
                     -CheckName 'IAM-001: Security Defaults vs Conditional Access Conflict' `
                     -Status    'Fail' `
                     -Detail    "Security Defaults is ENABLED but $enabledCaCount enabled CA policies also exist. This is a configuration conflict — Security Defaults and CA policies cannot coexist safely." `
@@ -89,7 +89,7 @@ function Test-EntraTenantConfig {
                     -CisControl 'CIS M365 1.1.1'))
             }
             elseif ($hasE5) {
-                $results.Add((New-AssessmentResult `
+                $results.Add((New-CheckResult `
                     -CheckName 'IAM-001: Security Defaults on E5 Tenant' `
                     -Status    'Fail' `
                     -Detail    "Security Defaults is ENABLED on an E5-licensed tenant. E5 includes Conditional Access; Security Defaults should be replaced with CA policies for granular control." `
@@ -100,7 +100,7 @@ function Test-EntraTenantConfig {
                     -CisControl 'CIS M365 1.1.1'))
             }
             else {
-                $results.Add((New-AssessmentResult `
+                $results.Add((New-CheckResult `
                     -CheckName 'IAM-001: Security Defaults Enabled' `
                     -Status    'Info' `
                     -Detail    "Security Defaults is ENABLED. For an E3 tenant without Conditional Access, this is an acceptable baseline providing MFA prompts, legacy auth blocking, and admin MFA enforcement." `
@@ -112,7 +112,7 @@ function Test-EntraTenantConfig {
             }
         }
         else {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'IAM-001: Security Defaults Disabled' `
                 -Status    'Pass' `
                 -Detail    "Security Defaults is DISABLED. Ensure Conditional Access policies cover the equivalent protections (MFA for all users, block legacy auth, admin MFA)." `
@@ -124,7 +124,7 @@ function Test-EntraTenantConfig {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-001: Security Defaults' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Policy.Read.All. Error: $_" `
@@ -140,7 +140,7 @@ function Test-EntraTenantConfig {
         $tenantName = $org.DisplayName
         $hasName = -not [string]::IsNullOrWhiteSpace($tenantName)
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-002: Tenant Display Name Configured' `
             -Status    (if ($hasName) { 'Pass' } else { 'Fail' }) `
             -Detail    (if ($hasName) { "Tenant display name is set." } else { "Tenant display name is empty or null. Basic hygiene issue." }) `
@@ -151,7 +151,7 @@ function Test-EntraTenantConfig {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-002: Tenant Display Name' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: Organization.Read.All. Error: $_" `
@@ -172,7 +172,7 @@ function Test-EntraTenantConfig {
         $campaignState = $authMethodsPolicy.registrationEnforcement.authenticationMethodsRegistrationCampaign.state
         $campaignEnabled = $campaignState -eq 'enabled'
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-003: SSPR Registration Campaign' `
             -Status    (if ($campaignEnabled) { 'Pass' } else { 'Warning' }) `
             -Detail    "Registration campaign state: $campaignState. A registration campaign prompts users to register authentication methods at next sign-in." `
@@ -183,7 +183,7 @@ function Test-EntraTenantConfig {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-003: SSPR Registration Campaign' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Policy.Read.All. Error: $_" `
@@ -199,7 +199,7 @@ function Test-EntraTenantConfig {
         $syncEnabled = $org.OnPremisesSyncEnabled
 
         if ($syncEnabled -eq $true) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'IAM-004: Password Hash Sync (Hybrid)' `
                 -Status    'Pass' `
                 -Detail    "OnPremisesSyncEnabled: true. Directory sync is active. Password Hash Sync should be verified separately via Entra Connect Health." `
@@ -210,7 +210,7 @@ function Test-EntraTenantConfig {
                 -CisControl ''))
         }
         else {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'IAM-004: Password Hash Sync (Hybrid)' `
                 -Status    'Info' `
                 -Detail    "OnPremisesSyncEnabled: false/null. This appears to be a cloud-only tenant. Password Hash Sync check is not applicable." `
@@ -222,7 +222,7 @@ function Test-EntraTenantConfig {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-004: Password Hash Sync' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: Organization.Read.All. Error: $_" `
@@ -248,7 +248,7 @@ function Test-EntraTenantConfig {
         $inboundAllowed = $inboundB2B.UsersAndGroups.AccessType
         $unrestricted   = $inboundAllowed -eq 'allowed' -or $null -eq $inboundAllowed
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-005: B2B Collaboration Settings' `
             -Status    (if ($unrestricted) { 'Warning' } else { 'Pass' }) `
             -Detail    "Cross-tenant inbound B2B access: $inboundAllowed. Partner-specific policies configured: $partnerCount. Unrestricted inbound allows any external user to be invited." `
@@ -259,7 +259,7 @@ function Test-EntraTenantConfig {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'IAM-005: B2B Collaboration Settings' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Policy.Read.All. Error: $_" `

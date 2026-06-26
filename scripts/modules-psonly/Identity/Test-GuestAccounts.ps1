@@ -34,7 +34,7 @@
                            Microsoft.Graph.Identity.DirectoryManagement
 
     License: E3 minimum; signInActivity requires AuditLog.Read.All.
-    Assumes New-AssessmentResult is dot-sourced from scripts/helpers before calling this function.
+    Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
 #>
 
 function Test-GuestAccounts {
@@ -62,7 +62,7 @@ function Test-GuestAccounts {
 
         $status = if ($guestPct -gt 30) { 'Fail' } elseif ($guestPct -gt 15) { 'Warning' } else { 'Pass' }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-001: Guest Account Volume' `
             -Status    $status `
             -Detail    "$guestCount guest account(s) in directory ($guestPct% of $totalUserCount enabled users). Large guest populations increase external attack surface." `
@@ -75,7 +75,7 @@ function Test-GuestAccounts {
             -CisControl 'CIS M365 1.3.1'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-001: Guest Account Volume' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: User.Read.All. Error: $_" `
@@ -101,7 +101,7 @@ function Test-GuestAccounts {
         $staleCount = $staleGuests.Count
         $staleUpns = ($staleGuests | Select-Object -First 20 -ExpandProperty UserPrincipalName) -join ', '
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-002: Stale Guest Accounts (90+ Days)' `
             -Status    (if ($staleCount -eq 0) { 'Pass' } elseif ($staleCount -lt 10) { 'Warning' } else { 'Fail' }) `
             -Detail    "$staleCount guest(s) with no sign-in in 90+ days. Sample: $staleUpns" `
@@ -114,7 +114,7 @@ function Test-GuestAccounts {
             -CisControl 'CIS M365 1.3.2'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-002: Stale Guest Accounts' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: User.Read.All, AuditLog.Read.All. Error: $_" `
@@ -138,7 +138,7 @@ function Test-GuestAccounts {
         }
         $severity = if ($allowInvitesFrom -eq 'everyone') { 'High' } elseif ($allowInvitesFrom -eq 'adminsGuestInvitersAndMembers') { 'Medium' } else { 'Info' }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-003: Guest Invite Permissions' `
             -Status    $status `
             -Detail    "AllowInvitesFrom: '$allowInvitesFrom'. Setting 'everyone' allows any user in the tenant to invite external guests without admin oversight." `
@@ -151,7 +151,7 @@ function Test-GuestAccounts {
             -CisControl 'CIS M365 1.3.3'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-003: Guest Invite Permissions' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: Policy.Read.All. Error: $_" `
@@ -180,7 +180,7 @@ function Test-GuestAccounts {
             default                                  { 'Warning' }
         }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-004: Guest Directory Access Level' `
             -Status    $status `
             -Detail    "Guest user access level: $levelName. Member-like access allows guests to enumerate users, groups, and other directory objects." `
@@ -193,7 +193,7 @@ function Test-GuestAccounts {
             -CisControl 'CIS M365 1.3.1'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-004: Guest Directory Access Level' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: Policy.Read.All. Error: $_" `
@@ -235,7 +235,7 @@ function Test-GuestAccounts {
 
         if ($guestsInRoles.Count -gt 0) {
             $detail = ($guestsInRoles | ForEach-Object { "$($_.UPN) [$($_.RoleName)]" }) -join '; '
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'GST-005: Guests with Privileged Roles' `
                 -Status    'Fail' `
                 -Detail    "$($guestsInRoles.Count) guest(s) found in privileged roles: $detail" `
@@ -248,7 +248,7 @@ function Test-GuestAccounts {
                 -CisControl 'CIS M365 1.3.6'))
         }
         else {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'GST-005: Guests with Privileged Roles' `
                 -Status    'Pass' `
                 -Detail    "No guest accounts found in privileged Entra ID roles ($($privilegedRoles.Count) roles checked)." `
@@ -260,7 +260,7 @@ function Test-GuestAccounts {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'GST-005: Guests with Privileged Roles' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: RoleManagement.Read.Directory. Error: $_" `

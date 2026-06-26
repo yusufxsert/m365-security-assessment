@@ -168,7 +168,7 @@ function Test-MFACoverage {
                     $adminsWithoutMfa.Add($adminUpnMap[$adminId])
                 }
             }
-            catch { Write-Verbose "Could not check MFA methods for admin $adminId: $_" }
+            catch { Write-Verbose "Could not check MFA methods for admin ${adminId}: $_" }
         }
 
         $results.Add((New-CheckResult `

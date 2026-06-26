@@ -37,7 +37,7 @@
                            Microsoft.Graph.Reports
 
     License: E3 minimum; AuditLog requires E3+; risk data requires Entra ID P2.
-    Assumes New-AssessmentResult is dot-sourced from scripts/helpers before calling this function.
+    Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
 #>
 
 function Test-UserIdentities {
@@ -65,7 +65,7 @@ function Test-UserIdentities {
         $status = if ($pct -gt 10) { 'Fail' } elseif ($pct -gt 5) { 'Warning' } else { 'Pass' }
         $affectedUpns = ($unlicensed | Select-Object -First 20 -ExpandProperty UserPrincipalName) -join ', '
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-001: Unlicensed Active Users' `
             -Status    $status `
             -Detail    "$unlicensedCount of $totalEnabled enabled users have no assigned license ($pct%). Sample: $affectedUpns" `
@@ -78,7 +78,7 @@ function Test-UserIdentities {
             -CisControl 'CIS M365 1.1.4'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-001: Unlicensed Active Users' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: User.Read.All. Error: $_" `
@@ -123,7 +123,7 @@ function Test-UserIdentities {
         $staleRegularSample = ($staleRegular | Select-Object -First 10 -ExpandProperty UserPrincipalName) -join ', '
 
         if ($staleAdmins.Count -gt 0) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'USR-002: Stale Admin Accounts (90+ Days)' `
                 -Status    'Fail' `
                 -Detail    "$($staleAdmins.Count) admin account(s) have not signed in for 90+ days: $staleAdminUpns" `
@@ -137,7 +137,7 @@ function Test-UserIdentities {
         }
 
         $regularStatus = if ($staleRegular.Count -eq 0) { 'Pass' } elseif ($staleRegular.Count -lt 10) { 'Warning' } else { 'Fail' }
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-002: Stale User Accounts (90+ Days)' `
             -Status    $regularStatus `
             -Detail    "$($staleRegular.Count) enabled non-admin user account(s) have not signed in for 90+ days. Sample: $staleRegularSample" `
@@ -150,7 +150,7 @@ function Test-UserIdentities {
             -CisControl 'CIS M365 1.1.4'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-002: Stale Accounts' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: User.Read.All, AuditLog.Read.All. Error: $_" `
@@ -179,7 +179,7 @@ function Test-UserIdentities {
 
         if ($adminsWithoutMfa.Count -gt 0) {
             $adminUpns = ($adminsWithoutMfa | Select-Object -ExpandProperty UserPrincipalName) -join ', '
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'USR-003: Admins Without MFA Registered' `
                 -Status    'Fail' `
                 -Detail    "$($adminsWithoutMfa.Count) admin(s) have no MFA method registered ($adminPct% of admins): $adminUpns" `
@@ -193,7 +193,7 @@ function Test-UserIdentities {
         }
 
         $allUserStatus = if ($pct -le 5) { 'Pass' } elseif ($pct -le 20) { 'Warning' } else { 'Fail' }
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-003: Users Without MFA Registered' `
             -Status    $allUserStatus `
             -Detail    "$withoutMfa of $totalUsers users ($pct%) have no MFA method registered." `
@@ -206,7 +206,7 @@ function Test-UserIdentities {
             -CisControl 'CIS M365 1.1.2'))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-003: MFA Registration' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: Reports.Read.All. Error: $_" `
@@ -232,7 +232,7 @@ function Test-UserIdentities {
             ($riskySignIns | Select-Object -ExpandProperty UserPrincipalName | Sort-Object -Unique).Count
         } else { 0 }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-004: High-Risk Sign-In Attempts (Last 30 Days)' `
             -Status    (if ($riskyCount -eq 0) { 'Pass' } else { 'Warning' }) `
             -Detail    "High-risk sign-in events in last 30 days: $riskyCount across $uniqueRiskyUsers unique user(s). NOTE: riskLevelAggregated data requires Entra ID P2 / Identity Protection. Zero results may indicate no P2 license rather than no risk." `
@@ -245,7 +245,7 @@ function Test-UserIdentities {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-004: Risky Sign-Ins' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: AuditLog.Read.All. Entra ID P2 license required for risk data. Error: $_" `
@@ -261,7 +261,7 @@ function Test-UserIdentities {
         $gaRole = $allRoles | Where-Object { $_.DisplayName -eq 'Global Administrator' } | Select-Object -First 1
 
         if (-not $gaRole) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'USR-005: Global Admin Count' `
                 -Status    'Info' `
                 -Detail    "Global Administrator role not found. This may indicate the role has no active members." `
@@ -290,7 +290,7 @@ function Test-UserIdentities {
                 "$gaCount Global Administrators found. This is within the recommended range of 2-4."
             }
 
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'USR-005: Global Admin Count' `
                 -Status    $status `
                 -Detail    $detail `
@@ -304,7 +304,7 @@ function Test-UserIdentities {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'USR-005: Global Admin Count' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: RoleManagement.Read.Directory. Error: $_" `

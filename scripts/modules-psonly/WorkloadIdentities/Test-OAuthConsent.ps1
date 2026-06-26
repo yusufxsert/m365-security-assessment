@@ -334,7 +334,7 @@ function Test-OAuthConsent {
                     }
                 }
                 catch {
-                    Write-Verbose "OAU-005: Could not check publisher for $clientId: $_"
+                    Write-Verbose "OAU-005: Could not check publisher for ${clientId}: $_"
                 }
             }
 

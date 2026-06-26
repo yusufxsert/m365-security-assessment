@@ -45,7 +45,7 @@
                            Microsoft.Graph.Identity.DirectoryManagement
 
     License: E3 minimum.
-    Assumes New-AssessmentResult is dot-sourced from scripts/helpers before calling this function.
+    Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
 #>
 
 function Test-HybridIdentity {
@@ -62,7 +62,7 @@ function Test-HybridIdentity {
         $org = Get-MgOrganization -Property 'id,displayName,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesProvisioningErrors' -ErrorAction Stop
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-000: Organization Data' `
             -Status    'Info' `
             -Detail    "Could not retrieve organization data. All hybrid checks skipped. Required: Organization.Read.All. Error: $_" `
@@ -79,7 +79,7 @@ function Test-HybridIdentity {
     # HYB-001: Entra Connect sync status and lag
     try {
         if (-not $isHybrid) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-001: Entra Connect Sync Status' `
                 -Status    'Info' `
                 -Detail    "OnPremisesSyncEnabled: false/null. Cloud-only tenant detected. Hybrid identity checks HYB-001 through HYB-005 are not applicable." `
@@ -98,7 +98,7 @@ function Test-HybridIdentity {
         $syncAgeHours = if ($syncAgeMinutes) { [math]::Round($syncAgeMinutes / 60, 1) } else { $null }
 
         if ($null -eq $lastSync) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-001: Entra Connect Sync Status' `
                 -Status    'Fail' `
                 -Detail    "OnPremisesSyncEnabled is true but OnPremisesLastSyncDateTime is null. Sync may never have completed or data is not visible via API." `
@@ -109,7 +109,7 @@ function Test-HybridIdentity {
                 -CisControl ''))
         }
         elseif ($syncAgeMinutes -gt 180) {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-001: Entra Connect Sync Status' `
                 -Status    'Fail' `
                 -Detail    "Last successful sync: $lastSync ($syncAgeHours hours ago). Sync is stale (threshold: 3 hours). Identity changes from on-premises may not have propagated." `
@@ -122,7 +122,7 @@ function Test-HybridIdentity {
                 -CisControl ''))
         }
         else {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-001: Entra Connect Sync Status' `
                 -Status    'Pass' `
                 -Detail    "Entra Connect sync is active. Last sync: $lastSync ($syncAgeMinutes minutes ago)." `
@@ -134,7 +134,7 @@ function Test-HybridIdentity {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-001: Entra Connect Sync Status' `
             -Status    'Info' `
             -Detail    "Check failed: $_" `
@@ -157,7 +157,7 @@ function Test-HybridIdentity {
             "Managed (Password Hash Sync or Pass-through Auth — $($managedDomains.Count) managed domain(s))"
         }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-002: Authentication Method (PHS/PTA/Federation)' `
             -Status    'Info' `
             -Detail    "Detected sync method: $syncMethod. Federated domains rely on on-premises ADFS. Managed domains use PHS or PTA directly in Entra ID." `
@@ -168,7 +168,7 @@ function Test-HybridIdentity {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-002: Authentication Method' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Directory.Read.All. Error: $_" `
@@ -187,7 +187,7 @@ function Test-HybridIdentity {
             -Property 'id,displayName,appId' -ErrorAction Stop
         $ssoEnabled = @($ssoSps).Count -gt 0
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-003: Seamless SSO Status' `
             -Status    'Info' `
             -Detail    "Seamless SSO service principal found: $ssoEnabled. Seamless SSO enables transparent Kerberos-based authentication for domain-joined devices. NOTE: Detailed PTA/SSSO health data (agent status, session key age) is only available in the Entra Connect Health portal — https://entra.microsoft.com/#view/Microsoft_AAD_IAM/HealthMenuBlade" `
@@ -198,7 +198,7 @@ function Test-HybridIdentity {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-003: Seamless SSO Status' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Directory.Read.All. Error: $_" `
@@ -213,7 +213,7 @@ function Test-HybridIdentity {
         $provErrors = $org.OnPremisesProvisioningErrors
         $errorCount = if ($provErrors) { @($provErrors).Count } else { 0 }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-004: Directory Provisioning Errors' `
             -Status    (if ($errorCount -eq 0) { 'Pass' } else { 'Fail' }) `
             -Detail    "On-premises provisioning errors: $errorCount. Provisioning errors indicate objects that failed to sync from AD to Entra ID." `
@@ -224,7 +224,7 @@ function Test-HybridIdentity {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-004: Provisioning Errors' `
             -Status    'Info' `
             -Detail    "Check skipped: error reading provisioning errors. Error: $_" `
@@ -267,7 +267,7 @@ function Test-HybridIdentity {
 
         if ($syncAccountsInPrivRoles.Count -gt 0) {
             $detail = ($syncAccountsInPrivRoles | ForEach-Object { "$($_.UPN) [$($_.RoleName)]" }) -join '; '
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-005: Sync Service Account Privileges' `
                 -Status    'Fail' `
                 -Detail    "$($syncAccountsInPrivRoles.Count) synced/sync-pattern account(s) found in privileged roles: $detail" `
@@ -280,7 +280,7 @@ function Test-HybridIdentity {
                 -CisControl 'CIS M365 1.1.4'))
         }
         else {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'HYB-005: Sync Service Account Privileges' `
                 -Status    'Pass' `
                 -Detail    "No on-premises synced accounts detected in elevated Entra ID roles (Global Admin, Privileged Role Admin, Hybrid Identity Admin)." `
@@ -292,7 +292,7 @@ function Test-HybridIdentity {
         }
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'HYB-005: Sync Service Account Privileges' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions. Required: RoleManagement.Read.Directory. Error: $_" `

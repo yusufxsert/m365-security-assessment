@@ -98,6 +98,23 @@ function Connect-PSOnly {
 
     $allScopes = ($defaultScopes + $GraphScopes) | Sort-Object -Unique
 
+    # ---- Pre-load all Graph submodules at consistent versions -----------------
+    # Must happen before Connect-MgGraph to prevent assembly version conflicts
+    # when cmdlets auto-trigger lazy module loading later in the session.
+    $graphModules = @(
+        'Microsoft.Graph.Authentication'
+        'Microsoft.Graph.Identity.SignIns'
+        'Microsoft.Graph.Reports'
+        'Microsoft.Graph.Identity.DirectoryManagement'
+        'Microsoft.Graph.Users'
+        'Microsoft.Graph.Applications'
+        'Microsoft.Graph.DeviceManagement'
+        'Microsoft.Graph.Identity.Governance'
+    )
+    foreach ($mod in $graphModules) {
+        Import-Module $mod -Force -ErrorAction SilentlyContinue
+    }
+
     # ---- Microsoft Graph (interactive / device code) -------------------------
     Write-Host '[Connect-PSOnly] Connecting to Microsoft Graph...' -ForegroundColor Cyan
 

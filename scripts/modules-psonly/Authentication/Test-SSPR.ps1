@@ -5,12 +5,12 @@
     Checks Self-Service Password Reset (SSPR) configuration. PS-ONLY variant.
 
 .DESCRIPTION
-    PS-ONLY VARIANT — converts New-AssessmentResult → New-CheckResult, and uses
+    PS-ONLY VARIANT — converts New-CheckResult → New-CheckResult, and uses
     Get-MgPolicyAuthenticationMethodPolicy (PS-only) for SSP-004 instead of
     raw Invoke-MgGraphRequest.
 
     WHY PS-ONLY:
-    The original uses New-AssessmentResult (different helper with different parameters).
+    The original uses New-CheckResult (different helper with different parameters).
     This variant uses New-CheckResult with the standard CheckId-based parameter set.
 
     NOTE on SSP-001 and SSP-002 (SSPR policy):
@@ -50,7 +50,7 @@
     All findings are returned as PSCustomObject via New-CheckResult.
     The function is read-only and makes no changes to tenant configuration.
 
-    Status mapping from original (New-AssessmentResult) to New-CheckResult:
+    Status mapping from original (New-CheckResult) to New-CheckResult:
         Pass    → PASS
         Warning → MEDIUM
         Fail    → HIGH

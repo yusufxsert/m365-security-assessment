@@ -35,7 +35,7 @@
                            Microsoft.Graph.Identity.SignIns
 
     License: E3 minimum; cross-tenant access policies available on all editions.
-    Assumes New-AssessmentResult is dot-sourced from scripts/helpers before calling this function.
+    Assumes New-CheckResult is dot-sourced from scripts/helpers before calling this function.
 #>
 
 function Test-ExternalIdentities {
@@ -52,7 +52,7 @@ function Test-ExternalIdentities {
         $defaultPolicy = Get-MgPolicyCrossTenantAccessPolicyDefault -ErrorAction Stop
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'EXT-000: Cross-Tenant Policy Retrieval' `
             -Status    'Info' `
             -Detail    "Could not retrieve cross-tenant access policy default. EXT-001 and EXT-004 skipped. Required: Policy.Read.All. Error: $_" `
@@ -74,7 +74,7 @@ function Test-ExternalIdentities {
             $inboundAccessType = $inboundB2B.UsersAndGroups.AccessType
             $unrestricted = $inboundAccessType -eq 'allowed' -or $null -eq $inboundAccessType
 
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'EXT-001: Cross-Tenant Inbound B2B Trust Settings' `
                 -Status    (if ($unrestricted) { 'Warning' } else { 'Pass' }) `
                 -Detail    "Inbound B2B access: $inboundAccessType. MFA from partner trusted: $mfaTrusted. Compliant device trusted: $compliantTrusted. Hybrid-joined device trusted: $hybridJoinTrusted." `
@@ -87,7 +87,7 @@ function Test-ExternalIdentities {
                 -CisControl ''))
         }
         catch {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'EXT-001: Cross-Tenant Inbound Trust' `
                 -Status    'Info' `
                 -Detail    "Check failed: $_" `
@@ -101,7 +101,7 @@ function Test-ExternalIdentities {
     # EXT-002: External identity providers configured
     # No typed cmdlet confirmed in mapping table for /identityProviders.
     # Emitting INFO result and directing to Graph variant or portal.
-    $results.Add((New-AssessmentResult `
+    $results.Add((New-CheckResult `
         -CheckName 'EXT-002: External Identity Providers' `
         -Status    'Info' `
         -Detail    "EXT-002 is not available in PS-only mode: no typed SDK cmdlet exists for /identityProviders in the confirmed mapping table. To check configured social/external identity providers, use the Graph variant (scripts/modules/Identity/Test-ExternalIdentities.ps1) or inspect Entra ID > External Identities > All identity providers in the portal." `
@@ -126,7 +126,7 @@ function Test-ExternalIdentities {
             }
         }
 
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'EXT-003: Partner Cross-Tenant Access Policies' `
             -Status    (if ($unrestrictedPartners.Count -gt 0) { 'Warning' } else { 'Pass' }) `
             -Detail    "$partnerCount partner-specific policies configured. Partners with unrestricted inbound B2B: $($unrestrictedPartners.Count). Tenant IDs: $($unrestrictedPartners -join ', ')" `
@@ -137,7 +137,7 @@ function Test-ExternalIdentities {
             -CisControl ''))
     }
     catch {
-        $results.Add((New-AssessmentResult `
+        $results.Add((New-CheckResult `
             -CheckName 'EXT-003: Partner Cross-Tenant Policies' `
             -Status    'Info' `
             -Detail    "Check skipped: insufficient permissions or API error. Required: Policy.Read.All. Error: $_" `
@@ -154,7 +154,7 @@ function Test-ExternalIdentities {
             $outboundAccessType = $b2bDirectConnectOutbound.UsersAndGroups.AccessType
             $unrestricted = $outboundAccessType -eq 'allowed' -or $null -eq $outboundAccessType
 
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'EXT-004: B2B Direct Connect Outbound' `
                 -Status    (if ($unrestricted) { 'Fail' } else { 'Pass' }) `
                 -Detail    "B2B Direct Connect outbound access type: $outboundAccessType. Unrestricted outbound allows your users to join external Teams shared channels and share data with other tenants." `
@@ -167,7 +167,7 @@ function Test-ExternalIdentities {
                 -CisControl ''))
         }
         catch {
-            $results.Add((New-AssessmentResult `
+            $results.Add((New-CheckResult `
                 -CheckName 'EXT-004: B2B Direct Connect Outbound' `
                 -Status    'Info' `
                 -Detail    "Check failed: $_" `
