@@ -108,8 +108,16 @@ function Test-AccessPackages {
     try {
         $noExpiryPackages = [System.Collections.Generic.List[string]]::new()
 
-        # Get all assignment policies across all access packages in one call
-        $allPolicies = Get-MgEntitlementManagementAccessPackageAssignmentPolicy -All -ErrorAction Stop
+        # Get-MgEntitlementManagementAccessPackageAssignmentPolicy requires -AccessPackageId
+        # in SDK v2 — collect per package to avoid mandatory parameter prompt.
+        $allPolicies = [System.Collections.Generic.List[object]]::new()
+        foreach ($ap in $accessPackages) {
+            try {
+                $pkgPolicies = Get-MgEntitlementManagementAccessPackageAssignmentPolicy `
+                    -AccessPackageId $ap.Id -All -ErrorAction SilentlyContinue
+                foreach ($p in $pkgPolicies) { $allPolicies.Add($p) }
+            } catch {}
+        }
 
         foreach ($ap in $accessPackages) {
             $apPolicies = @($allPolicies | Where-Object { $_.AccessPackageId -eq $ap.Id })
@@ -207,9 +215,17 @@ function Test-AccessPackages {
     # -------------------------------------------------------------------------
     try {
         $noReviewPackages = [System.Collections.Generic.List[string]]::new()
-        # Re-use allPolicies retrieved in ELM-002 if available
-        $policiesForReview = if ($allPolicies) { $allPolicies } else {
-            Get-MgEntitlementManagementAccessPackageAssignmentPolicy -All -ErrorAction Stop
+        # Re-use allPolicies retrieved in ELM-002 if available; collect per package if not
+        $policiesForReview = if ($allPolicies -and $allPolicies.Count -gt 0) { $allPolicies } else {
+            $tmp = [System.Collections.Generic.List[object]]::new()
+            foreach ($ap in $accessPackages) {
+                try {
+                    $pkgPolicies = Get-MgEntitlementManagementAccessPackageAssignmentPolicy `
+                        -AccessPackageId $ap.Id -All -ErrorAction SilentlyContinue
+                    foreach ($p in $pkgPolicies) { $tmp.Add($p) }
+                } catch {}
+            }
+            $tmp
         }
 
         foreach ($ap in $accessPackages) {
